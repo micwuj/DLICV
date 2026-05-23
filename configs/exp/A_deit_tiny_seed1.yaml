@@ -2,12 +2,12 @@
 # Regenerate: python scripts/generate_configs.py
 
 variant: A
-seed: 0
-run_name: A_resnet18_seed0
+seed: 1
+run_name: A_deit_tiny_seed1
 data:
-  splits_path: data/splits/pets_10cls_30perclass_seed0.json
+  splits_path: data/splits/pets_10cls_30perclass_seed1.json
 model:
-  name: resnet18
+  name: deit_tiny
   pretrained: true
 augmentation:
   mode: none

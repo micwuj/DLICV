@@ -3,11 +3,11 @@
 
 variant: A
 seed: 0
-run_name: A_resnet18_seed0
+run_name: A_convnext_tiny_seed0
 data:
   splits_path: data/splits/pets_10cls_30perclass_seed0.json
 model:
-  name: resnet18
+  name: convnext_tiny
   pretrained: true
 augmentation:
   mode: none
