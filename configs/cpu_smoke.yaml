@@ -1,0 +1,7 @@
+data:
+  images_per_class_train: 5
+training:
+  batch_size: 4
+  num_epochs: 1
+num_workers: 0
+device: cpu

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Project data — large, regenerable, downloaded
+data/raw/
+data/synthetic/
+data/cache/
+
+# Outputs (per-run CSVs, plots, checkpoints) — recenzent regeneruje
+outputs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Logs
+*.log
+wandb/
+
+# Local secrets
+.env
