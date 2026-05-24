@@ -1,12 +1,3 @@
-"""Generator configow eksperymentow dla fazy 2 (warianty A i B).
-
-Produkuje 4 modele x 2 warianty x 3 seedy = 24 configi w configs/exp/.
-
-Uruchomienie:
-    python scripts/generate_configs.py
-
-Pliki sa nadpisywane idempotentnie. Header informuje ze to auto-gen.
-"""
 from pathlib import Path
 
 import yaml
@@ -20,6 +11,16 @@ MODELS = ["resnet18", "convnext_tiny", "deit_tiny", "dinov2_small"]
 VARIANTS: dict[str, str] = {
     "A": "none",       # tylko dane realne
     "B": "classical",  # realne + RandAugment
+    "D": "none",       # realne + syntetyczne (proste prompty SD 1.5, bez LoRA)
+}
+
+# Synth-related overrides per variant. Brak klucza = variant nie uzywa synth.
+SYNTH_OVERRIDES: dict[str, dict] = {
+    "D": {
+        "synthetic_root": "data/synthetic/variant_D",
+        "n_synthetic_per_class": 120,
+        "synthetic_manifest": "data/synthetic/variant_D/manifest_kept.csv",
+    },
 }
 
 SEEDS = [0, 1, 2]
@@ -54,6 +55,8 @@ def make_config(variant: str, model: str, seed: int) -> dict:
             "mode": VARIANTS[variant],
         },
     }
+    if variant in SYNTH_OVERRIDES:
+        cfg["data"].update(SYNTH_OVERRIDES[variant])
     if model in MODEL_OVERRIDES:
         for key, val in MODEL_OVERRIDES[model].items():
             cfg[key] = val

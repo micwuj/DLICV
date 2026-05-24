@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from src.data.mixed_dataset import MixedPetsDataset
 from src.data.pets_dataset import PetsDataset
 from src.data.transforms import make_eval_transform, make_train_transform
 from src.models.registry import build_model, num_trainable_params, trainable_parameters
@@ -81,7 +82,20 @@ def run(cfg: dict) -> dict:
 
     splits_path = cfg["data"]["splits_path"]
     images_dir = cfg["data"]["images_dir"]
-    train_ds = PetsDataset(splits_path, "train", images_dir, transform=train_tf)
+    synth_root = cfg["data"].get("synthetic_root")
+    if synth_root:
+        train_ds = MixedPetsDataset(
+            splits_path=splits_path,
+            images_dir=images_dir,
+            synthetic_root=synth_root,
+            n_synthetic_per_class=cfg["data"]["n_synthetic_per_class"],
+            transform=train_tf,
+            manifest_path=cfg["data"].get("synthetic_manifest"),
+            seed=cfg["seed"],
+        )
+        print(f"Train: real={len(train_ds.real_samples)} + synth={len(train_ds.synth_samples)}")
+    else:
+        train_ds = PetsDataset(splits_path, "train", images_dir, transform=train_tf)
     val_ds = PetsDataset(splits_path, "val", images_dir, transform=eval_tf)
     test_ds = PetsDataset(splits_path, "test", images_dir, transform=eval_tf)
 
