@@ -12,6 +12,7 @@ VARIANTS: dict[str, str] = {
     "A": "none",       # tylko dane realne
     "B": "classical",  # realne + RandAugment
     "D": "none",       # realne + syntetyczne (proste prompty SD 1.5, bez LoRA)
+    "E": "none",       # realne + syntetyczne (LoRA dla 5 najtrudniejszych klas + simple dla reszty)
 }
 
 # Synth-related overrides per variant. Brak klucza = variant nie uzywa synth.
@@ -20,6 +21,11 @@ SYNTH_OVERRIDES: dict[str, dict] = {
         "synthetic_root": "data/synthetic/variant_D",
         "n_synthetic_per_class": 120,
         "synthetic_manifest": "data/synthetic/variant_D/manifest_kept.csv",
+    },
+    "E": {
+        "synthetic_root": "data/synthetic/variant_E",
+        "n_synthetic_per_class": 120,
+        "synthetic_manifest": "data/synthetic/variant_E/manifest_kept.csv",
     },
 }
 

@@ -110,3 +110,37 @@ def test_real_first_then_synth_ordering(tmp_path):
     # indices [0, 1] -> real, indices [2..] -> synth
     assert len(ds.real_samples) == 2
     assert len(ds.synth_samples) == 4
+
+
+def test_manifest_with_missing_data_prefix(tmp_path, monkeypatch):
+    data_root = tmp_path / "data"
+    real = data_root / "real"
+    real.mkdir(parents=True)
+    for name in ("cat.jpg", "dog.jpg"):
+        Image.new("RGB", (50, 50), color="red").save(real / name)
+    splits = data_root / "splits.json"
+    splits.write_text(json.dumps({
+        "meta": {"classes": ["cat", "dog"], "class_to_idx": {"cat": 0, "dog": 1}},
+        "train": [
+            {"image": "cat.jpg", "class": "cat", "label": 0},
+            {"image": "dog.jpg", "class": "dog", "label": 1},
+        ],
+        "val": [], "test": [],
+    }))
+    synth = data_root / "synthetic" / "variant_D"
+    for breed in ("cat", "dog"):
+        (synth / breed).mkdir(parents=True)
+        for i in range(3):
+            Image.new("RGB", (50, 50), color="blue").save(synth / breed / f"{breed}_{i:04d}.png")
+
+    manifest = data_root / "manifest.csv"
+    # Paths missing the data/ prefix (legacy bug format)
+    manifest.write_text(
+        "breed,path\n"
+        "cat,synthetic/variant_D/cat/cat_0000.png\n"
+        "dog,synthetic/variant_D/dog/dog_0001.png\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    ds = MixedPetsDataset(splits, real, synth, n_synthetic_per_class=10, manifest_path=manifest, seed=0)
+    for s in ds.synth_samples:
+        assert Path(s["image"]).exists(), f"unresolved: {s['image']}"

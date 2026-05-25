@@ -35,6 +35,17 @@ class MixedPetsDataset(Dataset):
         eligible = self._load_eligible_synth(manifest_path)
         self.synth_samples = self._sample_synth(eligible, n_synthetic_per_class, seed)
 
+    def _resolve_path(self, raw: str) -> Path:
+        # Manifest paths may be relative to project root (data/synthetic/...) or
+        # to data/ (synthetic/...) depending on which writer produced the file.
+        p = Path(raw)
+        if p.exists():
+            return p
+        alt = Path("data") / p
+        if alt.exists():
+            return alt
+        return p
+
     def _load_eligible_synth(self, manifest_path: str | Path | None) -> dict[str, list[Path]]:
         if manifest_path and Path(manifest_path).exists():
             by_breed: dict[str, list[Path]] = {c: [] for c in self.classes}
@@ -43,7 +54,7 @@ class MixedPetsDataset(Dataset):
                 for row in reader:
                     breed = row["breed"]
                     if breed in by_breed:
-                        by_breed[breed].append(Path(row["path"]))
+                        by_breed[breed].append(self._resolve_path(row["path"]))
             return by_breed
         return {
             c: sorted((self.synthetic_root / c).glob(f"{c}_*.png"))
