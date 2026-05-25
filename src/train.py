@@ -92,6 +92,7 @@ def run(cfg: dict) -> dict:
             transform=train_tf,
             manifest_path=cfg["data"].get("synthetic_manifest"),
             seed=cfg["seed"],
+            use_real=cfg["data"].get("use_real", True),
         )
         print(f"Train: real={len(train_ds.real_samples)} + synth={len(train_ds.synth_samples)}")
     else:

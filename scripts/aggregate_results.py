@@ -183,24 +183,25 @@ def plot_training_curves(df: pd.DataFrame, curves: dict) -> None:
 
 
 def plot_confusion_examples(df: pd.DataFrame, confusion: dict, classes: list[str]) -> None:
-    pairs = (
-        df[df["seed"] == 0]
-        .sort_values(["variant", "model"])[["run_name", "variant", "model"]]
-        .values
-    )
-
-    n = len(pairs)
+    grouped = df.groupby(["variant", "model"])
+    keys = sorted(grouped.groups.keys())
+    n = len(keys)
     ncols = 4
     nrows = int(np.ceil(n / ncols))
     fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
     axes = np.atleast_2d(axes).flatten()
 
-    for i, (run, variant, model) in enumerate(pairs):
-        cm = np.array(confusion[run])
-        cm_norm = cm / np.maximum(cm.sum(axis=1, keepdims=True), 1)
+    for i, (variant, model) in enumerate(keys):
+        group = grouped.get_group((variant, model))
+        # Per-seed row-normalize, then mean across seeds: equal weight per seed
+        cms = []
+        for r in group["run_name"]:
+            cm = np.array(confusion[r], dtype=float)
+            cms.append(cm / np.maximum(cm.sum(axis=1, keepdims=True), 1))
+        cm_mean = np.mean(cms, axis=0)
         ax = axes[i]
-        im = ax.imshow(cm_norm, cmap="Blues", vmin=0, vmax=1)
-        ax.set_title(f"{variant} | {model} | seed0", fontsize=10)
+        ax.imshow(cm_mean, cmap="Blues", vmin=0, vmax=1)
+        ax.set_title(f"{variant} | {model} | mean({len(cms)} seeds)", fontsize=10)
         ax.set_xticks(range(len(classes)))
         ax.set_xticklabels(classes, rotation=90, fontsize=6)
         ax.set_yticks(range(len(classes)))
@@ -214,8 +215,52 @@ def plot_confusion_examples(df: pd.DataFrame, confusion: dict, classes: list[str
         axes[j].axis("off")
 
     plt.tight_layout()
-    out = AGG_DIR / "confusion_matrices_seed0.png"
+    out = AGG_DIR / "confusion_matrices_mean.png"
     plt.savefig(out, dpi=140)
+    plt.close()
+    print(f"Wrote {out.relative_to(ROOT)}")
+
+
+def plot_per_class_delta_heatmap(confusion: dict, df: pd.DataFrame, classes: list[str]) -> None:
+    # Per (variant, model) compute mean per-class recall across seeds.
+    cell_acc: dict[tuple[str, str], np.ndarray] = {}
+    grouped = df.groupby(["variant", "model"])
+    for (variant, model), group in grouped:
+        accs = []
+        for r in group["run_name"]:
+            cm = np.array(confusion[r], dtype=float)
+            per_class = np.diag(cm) / np.maximum(cm.sum(axis=1), 1)
+            accs.append(per_class)
+        cell_acc[(variant, model)] = np.mean(accs, axis=0)
+
+    variants = sorted({v for v, _ in cell_acc.keys()})
+    models = sorted({m for _, m in cell_acc.keys()})
+    baseline = "A"
+    deltas: dict[str, dict[str, np.ndarray]] = {v: {} for v in variants if v != baseline}
+    for v in deltas:
+        for m in models:
+            if (baseline, m) in cell_acc and (v, m) in cell_acc:
+                deltas[v][m] = (cell_acc[(v, m)] - cell_acc[(baseline, m)]) * 100
+
+    fig, axes = plt.subplots(1, len(deltas), figsize=(4 + 2 * len(models), 5), sharey=True)
+    if len(deltas) == 1:
+        axes = [axes]
+    vmax = max(abs(d).max() for v in deltas for d in deltas[v].values())
+    for ax, v in zip(axes, sorted(deltas)):
+        matrix = np.stack([deltas[v][m] for m in models], axis=1)
+        im = ax.imshow(matrix, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
+        ax.set_title(f"{v} - {baseline}  (per-class acc, pp)")
+        ax.set_xticks(range(len(models)))
+        ax.set_xticklabels(models, rotation=30, ha="right", fontsize=8)
+        ax.set_yticks(range(len(classes)))
+        ax.set_yticklabels(classes, fontsize=8)
+        for ci in range(len(classes)):
+            for mi in range(len(models)):
+                ax.text(mi, ci, f"{matrix[ci, mi]:+.1f}", ha="center", va="center",
+                        fontsize=7, color="black" if abs(matrix[ci, mi]) < vmax * 0.5 else "white")
+    fig.colorbar(im, ax=axes, shrink=0.7, label="delta per-class acc (pp)")
+    out = AGG_DIR / "per_class_delta_heatmap.png"
+    plt.savefig(out, dpi=140, bbox_inches="tight")
     plt.close()
     print(f"Wrote {out.relative_to(ROOT)}")
 
@@ -277,6 +322,7 @@ def main() -> None:
     plot_test_accuracy_bars(summary)
     plot_training_curves(df, curves)
     plot_confusion_examples(df, confusion, classes)
+    plot_per_class_delta_heatmap(confusion, df, classes)
 
     print(f"\nAll artifacts in {AGG_DIR.relative_to(ROOT)}/")
 

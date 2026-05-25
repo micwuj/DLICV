@@ -11,12 +11,19 @@ MODELS = ["resnet18", "convnext_tiny", "deit_tiny", "dinov2_small"]
 VARIANTS: dict[str, str] = {
     "A": "none",       # tylko dane realne
     "B": "classical",  # realne + RandAugment
+    "C": "none",       # tylko syntetyczne (z manifestu D, bez real)
     "D": "none",       # realne + syntetyczne (proste prompty SD 1.5, bez LoRA)
     "E": "none",       # realne + syntetyczne (LoRA dla 5 najtrudniejszych klas + simple dla reszty)
 }
 
 # Synth-related overrides per variant. Brak klucza = variant nie uzywa synth.
 SYNTH_OVERRIDES: dict[str, dict] = {
+    "C": {
+        "synthetic_root": "data/synthetic/variant_D",
+        "n_synthetic_per_class": 120,
+        "synthetic_manifest": "data/synthetic/variant_D/manifest_kept.csv",
+        "use_real": False,
+    },
     "D": {
         "synthetic_root": "data/synthetic/variant_D",
         "n_synthetic_per_class": 120,

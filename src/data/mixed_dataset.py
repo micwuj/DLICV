@@ -18,13 +18,14 @@ class MixedPetsDataset(Dataset):
         transform: Callable | None = None,
         manifest_path: str | Path | None = None,
         seed: int = 0,
+        use_real: bool = True,
     ):
         with open(splits_path) as f:
             data = json.load(f)
         if "train" not in data:
             raise ValueError(f"split 'train' nie istnieje w {splits_path}")
         self.meta = data["meta"]
-        self.real_samples = data["train"]
+        self.real_samples = data["train"] if use_real else []
         self.images_dir = Path(images_dir)
         self.synthetic_root = Path(synthetic_root)
         self.transform = transform
