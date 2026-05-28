@@ -25,9 +25,11 @@ env/
 data/raw/
 data/synthetic/
 data/cache/
+data/lora_train/
 
 # Outputs (per-run CSVs, plots, checkpoints) — recenzent regeneruje
-outputs/
+# outputs/
+*.ckpt
 checkpoints/
 *.pt
 *.pth
@@ -40,3 +42,4 @@ wandb/
 
 # Local secrets
 .env
+*.ckpt

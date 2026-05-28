@@ -1,0 +1,13 @@
+source,method,kept,dropped,kept_pct
+variant_D,clip_only,3000,0,100.0
+variant_D,dino_only,2750,250,91.66666666666667
+variant_D,joint_and,2250,750,75.0
+variant_D,joint_or,3000,0,100.0
+variant_D,pct_only,2250,750,75.0
+variant_D,current_pipeline,2750,250,91.66666666666667
+variant_E,clip_only,1244,256,82.93333333333334
+variant_E,dino_only,1195,305,79.66666666666667
+variant_E,joint_and,1125,375,75.0
+variant_E,joint_or,1244,256,82.93333333333334
+variant_E,pct_only,1125,375,75.0
+variant_E,current_pipeline,1195,305,79.66666666666667

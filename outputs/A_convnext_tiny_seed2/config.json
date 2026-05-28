@@ -1,0 +1,42 @@
+{
+  "project": {
+    "name": "DLICV"
+  },
+  "data": {
+    "num_classes": 10,
+    "image_size": 224,
+    "images_dir": "data/raw/oxford-iiit-pet/images",
+    "splits_path": "data/splits/pets_10cls_30perclass_seed2.json",
+    "classes": [
+      "Maine_Coon",
+      "Ragdoll",
+      "Birman",
+      "Siamese",
+      "Persian",
+      "boxer",
+      "american_bulldog",
+      "staffordshire_bull_terrier",
+      "english_cocker_spaniel",
+      "english_setter"
+    ]
+  },
+  "model": {
+    "name": "convnext_tiny",
+    "pretrained": true
+  },
+  "augmentation": {
+    "mode": "none"
+  },
+  "training": {
+    "batch_size": 64,
+    "num_epochs": 30,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01
+  },
+  "seed": 2,
+  "device": "auto",
+  "num_workers": 2,
+  "output_dir": "outputs",
+  "variant": "A",
+  "run_name": "A_convnext_tiny_seed2"
+}

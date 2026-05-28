@@ -1,14 +1,20 @@
 import argparse
 import json
+import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = ROOT / "outputs"
 AGG_DIR = OUTPUTS_DIR / "_aggregate"
+
+_D_SWEEP_PATTERN = re.compile(
+    r"^D_(resnet18|convnext_tiny|deit_tiny|dinov2_small)(?:_n(\d+))?_seed(\d+)$"
+)
 
 
 def load_all_results() -> tuple[pd.DataFrame, dict, dict]:
@@ -242,7 +248,8 @@ def plot_per_class_delta_heatmap(confusion: dict, df: pd.DataFrame, classes: lis
             if (baseline, m) in cell_acc and (v, m) in cell_acc:
                 deltas[v][m] = (cell_acc[(v, m)] - cell_acc[(baseline, m)]) * 100
 
-    fig, axes = plt.subplots(1, len(deltas), figsize=(4 + 2 * len(models), 5), sharey=True)
+    fig, axes = plt.subplots(1, len(deltas), figsize=(3 * len(models) * len(deltas) / 4 + 2, 5),
+                             sharey=True)
     if len(deltas) == 1:
         axes = [axes]
     vmax = max(abs(d).max() for v in deltas for d in deltas[v].values())
@@ -258,9 +265,88 @@ def plot_per_class_delta_heatmap(confusion: dict, df: pd.DataFrame, classes: lis
             for mi in range(len(models)):
                 ax.text(mi, ci, f"{matrix[ci, mi]:+.1f}", ha="center", va="center",
                         fontsize=7, color="black" if abs(matrix[ci, mi]) < vmax * 0.5 else "white")
-    fig.colorbar(im, ax=axes, shrink=0.7, label="delta per-class acc (pp)")
+    fig.subplots_adjust(right=0.88)
+    cbar_ax = fig.add_axes([0.91, 0.15, 0.015, 0.7])
+    fig.colorbar(im, cax=cbar_ax, label="delta per-class acc (pp)")
     out = AGG_DIR / "per_class_delta_heatmap.png"
     plt.savefig(out, dpi=140, bbox_inches="tight")
+    plt.close()
+    print(f"Wrote {out.relative_to(ROOT)}")
+
+
+def collect_d_sweep() -> pd.DataFrame:
+    rows = []
+    for d in sorted(OUTPUTS_DIR.glob("D_*")):
+        m = _D_SWEEP_PATTERN.match(d.name)
+        if not m:
+            continue
+        model, n_str, seed_str = m.groups()
+        n_synth = 120 if n_str is None else int(n_str)
+        final = d / "final_results.json"
+        if not final.exists():
+            continue
+        f = json.loads(final.read_text())
+        rows.append({
+            "model": model,
+            "n_synth": n_synth,
+            "seed": int(seed_str),
+            "test_acc": f["test"]["accuracy"],
+        })
+    if not rows:
+        return pd.DataFrame(columns=["model", "n_synth", "seed", "test_acc"])
+    return pd.DataFrame(rows).sort_values(["model", "n_synth", "seed"]).reset_index(drop=True)
+
+
+def plot_d_n_synth_bars(df_sweep: pd.DataFrame) -> None:
+    if df_sweep.empty:
+        print("No D-sweep runs found, skipping plot_d_n_synth_bars.")
+        return
+
+    agg = (
+        df_sweep.groupby(["model", "n_synth"])
+        .agg(mean=("test_acc", "mean"), std=("test_acc", "std"))
+        .reset_index()
+    )
+
+    model_labels = {
+        "resnet18": "ResNet-18",
+        "deit_tiny": "DeiT-Tiny",
+        "convnext_tiny": "ConvNeXt-Tiny",
+        "dinov2_small": "DINOv2-Small",
+    }
+    n_values = sorted(agg["n_synth"].unique())
+    models = sorted(agg["model"].unique())
+    x = np.arange(len(models))
+    width = 0.7 / len(n_values)
+    colors = ["#4878CF", "#6ACC65", "#D65F5F", "#B47CC7"]
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for i, n in enumerate(n_values):
+        sub = agg[agg["n_synth"] == n].set_index("model").reindex(models)
+        offset = (i - (len(n_values) - 1) / 2) * width
+        ax.bar(
+            x + offset,
+            sub["mean"],
+            width=width,
+            yerr=sub["std"],
+            capsize=3,
+            color=colors[i],
+            label=f"n={n}",
+            error_kw={"elinewidth": 1.0, "ecolor": "#444444"},
+        )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([model_labels.get(m, m) for m in models])
+    ax.set_ylim(0.70, 0.96)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0%}"))
+    ax.set_ylabel("Test accuracy (mean ± std, 3 seeds)")
+    ax.set_title("Variant D — effect of N synthetic per class\nAll models, Oxford-IIIT Pets (10 classes)")
+    ax.legend(title="N synth / class")
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+
+    out = AGG_DIR / "D_variant_n_synth_bars.png"
+    fig.savefig(out, dpi=150)
     plt.close()
     print(f"Wrote {out.relative_to(ROOT)}")
 
@@ -323,6 +409,9 @@ def main() -> None:
     plot_training_curves(df, curves)
     plot_confusion_examples(df, confusion, classes)
     plot_per_class_delta_heatmap(confusion, df, classes)
+
+    df_sweep = collect_d_sweep()
+    plot_d_n_synth_bars(df_sweep)
 
     print(f"\nAll artifacts in {AGG_DIR.relative_to(ROOT)}/")
 
