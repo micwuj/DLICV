@@ -45,7 +45,8 @@ class GradCAM:
         self.model.eval()
         self.model.zero_grad(set_to_none=True)
         out = self.model(x)
-        idx = int(out.argmax(dim=1).item()) if class_idx is None else int(class_idx)
+        pred = int(out.argmax(dim=1).item())
+        idx = pred if class_idx is None else int(class_idx)
         score = out[0, idx]
         score.backward()
         # gradients: (1, C, h, w); activations: (1, C, h, w)
@@ -61,4 +62,4 @@ class GradCAM:
             cam = torch.zeros_like(cam)
         if was_training:
             self.model.train()
-        return cam, idx
+        return cam, pred
